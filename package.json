@@ -1,0 +1,83 @@
+{
+  "name": "@aldine/confucius-agent",
+  "version": "1.0.0",
+  "description": "Confucius Agent - Ralph Protocol v3 + Browser QA MCP Server. Autonomous agent scaffold with visual QA and accessibility testing.",
+  "type": "module",
+  "private": false,
+  "license": "MIT",
+  "author": "Aldine",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aldine/confucius_agent-ralph_protocols--browser_qa.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Aldine/confucius_agent-ralph_protocols--browser_qa/issues"
+  },
+  "homepage": "https://github.com/Aldine/confucius_agent-ralph_protocols--browser_qa#readme",
+  "keywords": [
+    "llm",
+    "agent",
+    "scaffold",
+    "protocol",
+    "autonomous",
+    "confucius",
+    "ralph",
+    "vscode",
+    "mcp",
+    "model-context-protocol",
+    "copilot",
+    "claude",
+    "browser",
+    "cdp",
+    "chrome-devtools",
+    "wcag",
+    "accessibility",
+    "visual-qa"
+  ],
+  "engines": {
+    "node": ">=18.18.0"
+  },
+  "bin": {
+    "ralph": "./build/ralph/index.js",
+    "confucius-browser": "./build/browser/index.js"
+  },
+  "files": [
+    "build",
+    "README.md",
+    "LICENSE",
+    "SECURITY.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./build/index.d.ts",
+      "import": "./build/index.js"
+    },
+    "./ralph": {
+      "types": "./build/ralph/index.d.ts",
+      "import": "./build/ralph/index.js"
+    },
+    "./browser": {
+      "types": "./build/browser/public.d.ts",
+      "import": "./build/browser/public.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "rm -rf build",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "commander": "^12.1.0",
+    "ws": "^8.18.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.10",
+    "@types/ws": "^8.5.13",
+    "typescript": "^5.7.2"
+  }
+}
