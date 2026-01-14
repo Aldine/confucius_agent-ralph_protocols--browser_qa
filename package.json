@@ -38,8 +38,8 @@
     "node": ">=18.18.0"
   },
   "bin": {
-    "ralph": "./build/ralph/index.js",
-    "confucius-browser": "./build/browser/index.js"
+    "ralph": "build/ralph/index.js",
+    "confucius-browser": "build/browser/index.js"
   },
   "files": [
     "build",
