@@ -25,6 +25,27 @@ MCP server for browser automation and testing:
 - **Console Monitoring**: Error and warning collection
 - **Chrome DevTools Protocol**: Direct browser control
 
+## 📋 Test Prompts & Verification
+
+This package includes comprehensive test prompts to verify functionality:
+
+- **[PROMPT_2_RALPH_SANITY](docs/PROMPT_2_RALPH_SANITY.md)**: Quick sanity check (5 min)
+  - Tests Ralph Protocol CLI commands
+  - Verifies state file management
+  - Validates strike system
+
+- **[PROMPT_1_RALPH_AUDIT](docs/PROMPT_1_RALPH_AUDIT.md)**: Full accessibility audit (15 min)
+  - Ralph + Browser MCP integration
+  - Computed WCAG contrast ratios
+  - Multi-phase workflow with verification
+
+- **[BUNDLE_PLAN](BUNDLE_PLAN.md)**: Complete ecosystem architecture
+  - Integration guide
+  - Package boundaries
+  - Relationship to Python framework
+
+These prompts force **real computed values** and **verifiable state changes**, catching LLM hallucinations.
+
 ## 🚀 Quick Start
 
 ### Installation
