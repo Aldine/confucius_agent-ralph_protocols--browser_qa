@@ -1,6 +1,6 @@
 {
   "name": "@aldine/confucius-agent",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Confucius Agent - Ralph Protocol v3 + Browser QA MCP Server. Autonomous agent scaffold with visual QA and accessibility testing.",
   "type": "module",
   "private": false,
