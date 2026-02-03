@@ -1,7 +1,7 @@
 {
   "name": "@aldine/confucius-agent",
-  "version": "1.0.1",
-  "description": "Confucius Agent - Ralph Protocol v3 + Browser QA MCP Server. Autonomous agent scaffold with visual QA and accessibility testing.",
+  "version": "1.0.2",
+  "description": "Confucius Agent - Ralph Protocol v3 + Browser QA MCP Server with AI agent focusing system (ESLint strict mode). Autonomous agent scaffold with visual QA, accessibility testing, and typo/linting prevention.",
   "type": "module",
   "private": false,
   "license": "MIT",
@@ -66,6 +66,11 @@
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "verify": "npm run typecheck && npm run lint",
+    "test:focus": "node test-agent-focus.js",
+    "test:verify": "node test-complete-verification.js",
     "clean": "rm -rf build",
     "prepublishOnly": "npm run build"
   },
@@ -78,6 +83,9 @@
   "devDependencies": {
     "@types/node": "^20.17.10",
     "@types/ws": "^8.5.13",
+    "@typescript-eslint/eslint-plugin": "^8.54.0",
+    "@typescript-eslint/parser": "^8.54.0",
+    "eslint": "^8.57.1",
     "typescript": "^5.7.2"
   }
 }

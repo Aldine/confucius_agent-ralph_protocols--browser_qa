@@ -9,7 +9,7 @@
 
 ## 📦 What's Included
 
-This package unifies two complementary tools:
+This package unifies three complementary systems:
 
 ### 🔄 Ralph Protocol v3
 A text-based operating system for LLM agents with:
@@ -17,6 +17,7 @@ A text-based operating system for LLM agents with:
 - **Token Rot Prevention**: Hard cap on state files, automatic archiving
 - **Loop Scripts**: Bash/PowerShell scripts for continuous agent execution
 - **Subagent Spawning**: Fresh context generation for hard resets
+- **Supervised Recursion**: Quality gates with signed trace execution
 
 ### 🌐 Confucius Browser MCP
 MCP server for browser automation and testing:
@@ -24,6 +25,13 @@ MCP server for browser automation and testing:
 - **Accessibility Testing**: WCAG contrast auditing
 - **Console Monitoring**: Error and warning collection
 - **Chrome DevTools Protocol**: Direct browser control
+
+### ✅ AI Agent Focusing System (NEW in v1.0.2)
+Built-in verification to prevent typos and linting errors:
+- **ESLint Strict Mode**: Catches 7+ error types automatically
+- **TypeScript Strict Mode**: Already enabled, now with explicit verification
+- **Verification Commands**: `npm run verify` before commits
+- **Zero Tolerance**: No `any` types, no `var`, explicit return types required
 
 ## 📋 Test Prompts & Verification
 
@@ -235,7 +243,53 @@ Use Ralph Protocol to manage agent state while Browser MCP provides visual verif
 3. Browser MCP verifies UI changes
 4. Ralph tracks progress and handles failures
 
-## 📄 Migration from Previous Packages
+## � Code Quality & AI Agent Focusing
+
+### Built-in Verification System
+
+The package includes ESLint + TypeScript strict mode to prevent common AI agent mistakes:
+
+```bash
+# Run type checking and linting together
+npm run verify
+
+# Type check only (strict mode enabled)
+npm run typecheck
+
+# Lint only
+npm run lint
+
+# Auto-fix linting issues
+npm run lint:fix
+
+# Test the focusing system
+npm run test:focus       # Basic verification
+npm run test:verify      # Comprehensive test
+```
+
+### What Gets Caught
+
+- ❌ **Typos** in variable/interface names (`UserProflie` → `UserProfile`)
+- ❌ **Missing return type annotations** on functions
+- ❌ **`var` usage** instead of `const`/`let`
+- ❌ **`any` type** usage - enforces proper typing
+- ❌ **Unused variables** - catches dead code
+- ⚠️ **Console statements** - warnings
+
+### For AI Agent Developers
+
+Add these rules to your AI agent instructions:
+
+```markdown
+**CRITICAL**: Run `npm run verify` before committing any code.
+**CRITICAL**: Fix ALL linting errors and type errors. Zero tolerance.
+**CRITICAL**: Use explicit return types on all functions.
+**CRITICAL**: Never use `any` type - always provide proper types.
+```
+
+See `.eslintrc.json` and test files for configuration details.
+
+## �📄 Migration from Previous Packages
 
 If you were using the separate packages:
 
