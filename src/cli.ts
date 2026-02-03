@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
 import dotenv from 'dotenv';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import { LLMClient } from './core/llm.js';
 import { ConfuciusOrchestrator, LLMProvider } from './sdk/orchestrator.js';
 import { ExtensionRegistry } from './sdk/registry.js';
@@ -9,6 +12,12 @@ import { logger } from './core/logger.js';
 import type { Message, LLMResponse, Logger, ArtifactStore, Artifact, RunConfig } from './sdk/types.js';
 
 dotenv.config();
+
+// Read version from package.json
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const packageJson = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf-8'));
+
 const program = new Command();
 
 /**
@@ -79,7 +88,7 @@ Do NOT keep repeating actions after they succeed. Once the task is done, use <fi
 program
   .name('confucius')
   .description('Confucius Code Agent CLI')
-  .version('2.0.0-alpha.1')
+  .version(packageJson.version)
   .argument('<task>', 'The task to execute')
   .option('-p, --provider <type>', 'openai, anthropic, or openrouter', 'openrouter')
   .option('-m, --model <name>', 'Model name', 'anthropic/claude-3.5-sonnet')

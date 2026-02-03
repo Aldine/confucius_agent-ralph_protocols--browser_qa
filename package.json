@@ -1,6 +1,6 @@
 {
   "name": "@aldine/confucius-agent",
-  "version": "2.0.0-beta.1",
+  "version": "2.0.0-beta.3",
   "description": "Confucius SDK - A scalable agent scaffold for real-world codebases. Implements orchestrator loop, extension system, hierarchical memory, and sub-agents per the Confucius Code Agent paper (arXiv:2512.10398).",
   "type": "module",
   "private": false,
