@@ -1,6 +1,6 @@
 {
   "name": "@aldine/confucius-agent",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Confucius Agent - Ralph Protocol v3 + Browser QA MCP Server with AI agent focusing system (ESLint strict mode). Autonomous agent scaffold with visual QA, accessibility testing, and typo/linting prevention.",
   "type": "module",
   "private": false,
