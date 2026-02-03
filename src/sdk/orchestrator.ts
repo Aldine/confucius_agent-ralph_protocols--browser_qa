@@ -22,6 +22,13 @@ import type {
   Note,
 } from './types.js';
 import { ExtensionRegistry } from './registry.js';
+import { WorkingMemoryManager } from './memory/working-memory.js';
+import { ArchitectAgent, type ArchitectLLM } from './agents/architect.js';
+import { NoteTakerAgent, type NoteTakerLLM } from './agents/note-taker.js';
+import { MetaAgent, type MetaAgentLLM } from './agents/meta-agent.js';
+import { KnowledgeBase } from './memory/knowledge-base.js';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
 /**
  * LLMProvider - Interface for language model invocation.
@@ -56,6 +63,9 @@ export interface OrchestratorOptions {
   
   /** Run configuration */
   config: RunConfig;
+  
+  /** Working directory for session logs */
+  workingDirectory?: string;
 }
 
 /**
@@ -87,6 +97,11 @@ export class ConfuciusOrchestrator {
   private artifacts: ArtifactStore;
   private systemPrompt: string;
   private config: RunConfig;
+  private architect: ArchitectAgent;
+  private noteTaker: NoteTakerAgent;
+  private metaAgent: MetaAgent;
+  private knowledgeBase: KnowledgeBase;
+  private workingDirectory: string;
 
   constructor(options: OrchestratorOptions) {
     this.llm = options.llm;
@@ -95,6 +110,25 @@ export class ConfuciusOrchestrator {
     this.artifacts = options.artifacts;
     this.systemPrompt = options.systemPrompt;
     this.config = options.config;
+    this.workingDirectory = options.workingDirectory || process.cwd();
+    
+    // Create LLM adapter for sub-agents
+    const agentLLM: ArchitectLLM & NoteTakerLLM & MetaAgentLLM = {
+      chat: async (systemPrompt: string, userMessage: string) => {
+        const response = await this.llm.invoke(systemPrompt, [
+          { role: 'user', content: userMessage }
+        ]);
+        return response.content;
+      }
+    };
+    
+    // Initialize sub-agents
+    this.architect = new ArchitectAgent(this.logger, agentLLM);
+    this.noteTaker = new NoteTakerAgent(this.logger, agentLLM);
+    this.metaAgent = new MetaAgent(this.logger, agentLLM);
+    
+    // Initialize knowledge base
+    this.knowledgeBase = new KnowledgeBase(this.logger, this.workingDirectory);
   }
 
   /**
@@ -113,17 +147,32 @@ export class ConfuciusOrchestrator {
       enabledExtensions: this.config.enabledExtensions,
     });
 
-    // Step 1: Initialize session context, memory, extensions
-    const memory = this.initializeMemory();
-    const context = this.createContext(sessionId, memory);
+    // Step 0: Load learned rules from Knowledge Base
+    const learnedRules = await this.knowledgeBase.loadRules();
+    let enhancedSystemPrompt = this.systemPrompt;
+    
+    if (learnedRules.trim().length > 0) {
+      this.logger.info('[Meta-Agent] Injecting learned rules into system prompt');
+      enhancedSystemPrompt = `${this.systemPrompt}
 
-    // Add initial user message
-    memory.messages.push({
-      role: 'user',
-      content: initialMessage,
-      timestamp: new Date(),
-      scope: 'session',
-    });
+## Learned Rules (from previous sessions)
+${learnedRules}
+
+Apply these rules when relevant to the current task.`;
+    }
+
+    // Step 1: Initialize hierarchical memory with three scopes
+    const memoryManager = new WorkingMemoryManager(this.logger, this.config.compressionThreshold * 1.5);
+    
+    // Session Scope: System prompt with learned rules (immutable)
+    memoryManager.initializeSession(enhancedSystemPrompt);
+    
+    // Entry Scope: User's task (persistent across retries)
+    memoryManager.setEntry(initialMessage);
+    
+    // Get legacy memory interface for compatibility
+    const memory = memoryManager.getMemory();
+    const context = this.createContext(sessionId, memory, memoryManager);
 
     const state: OrchestratorState = {
       iteration: 0,
@@ -136,27 +185,28 @@ export class ConfuciusOrchestrator {
         state.iteration++;
         context.iteration = state.iteration;
 
+        // Log memory stats
+        const stats = memoryManager.getStats();
         this.logger.info(`Iteration ${state.iteration}`, {
-          messageCount: memory.messages.length,
-          tokenCount: memory.tokenCount,
+          sessionTokens: stats.scopes.session.tokens,
+          entryTokens: stats.scopes.entry.tokens,
+          runnableTokens: stats.scopes.runnable.tokens,
+          totalTokens: stats.total.tokens,
         });
 
-        // Check for context compression need
-        if (memory.tokenCount > this.config.compressionThreshold) {
-          await this.compressContext(memory, context);
+        // Check for context compression need (based on runnable scope)
+        if (memoryManager.needsCompression(this.config.compressionThreshold)) {
+          await this.compressContext(memoryManager, context);
         }
 
-        // Apply input callbacks from extensions
+        // Apply input callbacks from extensions (use hierarchical messages)
         const processedMessages = this.registry.applyInputCallbacks(
-          memory.messages,
+          memoryManager.getMessages(),
           context
         );
 
         // Step 3: Invoke LLM with system prompt + memory
         const llmResponse = await this.invokeLLM(processedMessages);
-
-        // Update token count
-        memory.tokenCount += llmResponse.usage.totalTokens;
 
         // Apply output callbacks from extensions
         const processedOutput = this.registry.applyOutputCallbacks(
@@ -178,12 +228,11 @@ export class ConfuciusOrchestrator {
           state.running = false;
           state.terminationReason = 'completed';
           
-          // Add assistant's final message to memory
-          memory.messages.push({
+          // Add assistant's final message to runnable scope
+          memoryManager.addToRunnable({
             role: 'assistant',
             content: processedOutput,
             timestamp: new Date(),
-            scope: 'session',
           });
           
           state.result = {
@@ -193,16 +242,17 @@ export class ConfuciusOrchestrator {
           break;
         }
 
-        // Add assistant message with actions
-        memory.messages.push({
+        // Add assistant message with actions to runnable scope
+        memoryManager.addToRunnable({
           role: 'assistant',
           content: processedOutput,
           timestamp: new Date(),
-          scope: 'entry',
         });
 
         // Steps 5-11: Execute actions
         let shouldContinue = false;
+        let shouldTerminate = false;
+        let terminationMessage = '';
         const results: ExecutionResult[] = [];
 
         for (const { extension, action } of actions) {
@@ -210,13 +260,22 @@ export class ConfuciusOrchestrator {
           const result = await this.registry.execute(extension, action, context);
           results.push(result);
 
-          // Step 12: Add observations to memory
-          memory.messages.push({
+          // Check for termination signal from extension (e.g., finish extension)
+          if (result.metadata?.terminate) {
+            shouldTerminate = true;
+            terminationMessage = result.metadata.finalMessage as string || result.output;
+            this.logger.info('Termination signal received', {
+              extension: extension.name,
+              reason: result.metadata.reason,
+            });
+          }
+
+          // Step 12: Add observations to runnable scope
+          memoryManager.addToRunnable({
             role: 'tool',
             content: `<result>${result.output}</result>`,
             toolName: extension.name,
             timestamp: new Date(),
-            scope: 'runnable',
           });
 
           // Step 8-10: Check continuation signal
@@ -230,6 +289,23 @@ export class ConfuciusOrchestrator {
               await this.artifacts.save(artifact);
             }
           }
+
+          // If termination was signaled, stop executing more actions
+          if (shouldTerminate) {
+            break;
+          }
+        }
+
+        // Handle termination signal
+        if (shouldTerminate) {
+          state.running = false;
+          state.terminationReason = 'completed';
+          state.result = {
+            success: true,
+            output: terminationMessage,
+          };
+          this.logger.info('Agent completed task', { message: terminationMessage });
+          break;
         }
 
         // If no extension signaled continuation and all succeeded, check completion
@@ -272,7 +348,39 @@ export class ConfuciusOrchestrator {
       timer();
     }
 
-    // Step 15: Return final output and artifacts
+    // Step 15: Generate session summary with NoteTaker
+    let sessionSummary = '';
+    try {
+      const allMessages = memoryManager.getMessages();
+      const finalResult: ExecutionResult = state.result || {
+        success: false,
+        output: 'No result available',
+      };
+      
+      sessionSummary = await this.noteTaker.generateSessionSummary(allMessages, finalResult);
+      await this.writeSessionSummary(sessionId, sessionSummary);
+    } catch (summaryError) {
+      this.logger.error('Failed to generate session summary', {
+        error: summaryError instanceof Error ? summaryError.message : String(summaryError),
+      });
+    }
+
+    // Step 16: Meta-Agent extracts lesson and updates Knowledge Base
+    if (sessionSummary.length > 0) {
+      try {
+        const lesson = await this.metaAgent.extractLesson(sessionSummary);
+        if (lesson && lesson.trim().length > 0) {
+          await this.knowledgeBase.addRule(lesson);
+          this.logger.info(`[Meta-Agent] Learned new rule: ${lesson}`);
+        }
+      } catch (metaError) {
+        this.logger.error('Failed to extract lesson', {
+          error: metaError instanceof Error ? metaError.message : String(metaError),
+        });
+      }
+    }
+
+    // Step 17: Return final output and artifacts
     this.logger.info('Orchestrator run complete', {
       sessionId,
       iterations: state.iteration,
@@ -281,6 +389,28 @@ export class ConfuciusOrchestrator {
     });
 
     return state;
+  }
+
+  /**
+   * Write session summary to .ralph/sessions/ directory.
+   */
+  private async writeSessionSummary(sessionId: string, summary: string): Promise<void> {
+    const sessionsDir = path.join(this.workingDirectory, '.ralph', 'sessions');
+    
+    // Ensure directory exists
+    await fs.mkdir(sessionsDir, { recursive: true });
+    
+    // Create timestamp-based filename
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `session-${timestamp}.md`;
+    const filepath = path.join(sessionsDir, filename);
+    
+    await fs.writeFile(filepath, summary, 'utf-8');
+    
+    this.logger.info('Session summary written', {
+      path: filepath,
+      sessionId,
+    });
   }
 
   /**
@@ -298,7 +428,7 @@ export class ConfuciusOrchestrator {
   /**
    * Create runtime context for extensions.
    */
-  private createContext(sessionId: string, memory: WorkingMemory): RunContext {
+  private createContext(sessionId: string, memory: WorkingMemory, memoryManager?: WorkingMemoryManager): RunContext {
     return {
       sessionId,
       iteration: 0,
@@ -309,18 +439,32 @@ export class ConfuciusOrchestrator {
       config: this.config,
 
       addMessage: (message: Message): void => {
-        memory.messages.push(message);
+        if (memoryManager) {
+          memoryManager.addMessage(message);
+        } else {
+          memory.messages.push(message);
+        }
       },
 
       readNote: (path: string): Note | null => {
+        if (memoryManager) {
+          return memoryManager.getNote(path) ?? null;
+        }
         return memory.notes.get(path) ?? null;
       },
 
       writeNote: (note: Note): void => {
-        memory.notes.set(note.path, note);
+        if (memoryManager) {
+          memoryManager.setNote(note);
+        } else {
+          memory.notes.set(note.path, note);
+        }
       },
 
       searchNotes: (query: string): Note[] => {
+        if (memoryManager) {
+          return memoryManager.searchNotes(query);
+        }
         const results: Note[] = [];
         const queryLower = query.toLowerCase();
         
@@ -369,45 +513,60 @@ export class ConfuciusOrchestrator {
   /**
    * Compress context when approaching token limits.
    * 
-   * This is a placeholder for the Architect agent (Phase 3).
-   * Currently implements simple truncation.
+   * Uses the Architect agent to intelligently summarize the runnable scope
+   * while preserving session and entry scopes intact.
    */
   private async compressContext(
-    memory: WorkingMemory,
+    memoryManager: WorkingMemoryManager,
     _context: RunContext
   ): Promise<void> {
+    const stats = memoryManager.getStats();
     this.logger.info('Compressing context', {
-      currentTokens: memory.tokenCount,
+      sessionTokens: stats.scopes.session.tokens,
+      entryTokens: stats.scopes.entry.tokens,
+      runnableTokens: stats.scopes.runnable.tokens,
       threshold: this.config.compressionThreshold,
     });
 
-    // TODO: Phase 3 - Implement Architect agent for intelligent summarization
-    // For now, simple strategy: keep system + recent N messages
-    // Placeholder await for future LLM integration
-    await Promise.resolve();
-    const keepRecent = 10;
+    // Get runnable messages for summarization
+    const runnableMessages = memoryManager.getRunnableMessages();
     
-    if (memory.messages.length > keepRecent) {
-      const removed = memory.messages.splice(0, memory.messages.length - keepRecent);
-      
-      // Create a summary message
-      const summary: Message = {
-        role: 'system',
-        content: `[Context compressed: ${removed.length} earlier messages summarized]`,
-        timestamp: new Date(),
-        scope: 'session',
-      };
-      
-      memory.messages.unshift(summary);
-      
-      // Rough token estimate (will be more accurate in Phase 3)
-      memory.tokenCount = Math.floor(memory.tokenCount * 0.6);
-      
-      this.logger.info('Context compressed', {
-        removedMessages: removed.length,
-        newTokenEstimate: memory.tokenCount,
-      });
+    if (runnableMessages.length <= 2) {
+      this.logger.info('Too few runnable messages to compress, skipping');
+      return;
     }
+
+    // Keep recent messages, summarize older ones
+    const keepRecent = 4;
+    const toSummarize = runnableMessages.slice(0, -keepRecent);
+    const toKeep = runnableMessages.slice(-keepRecent);
+
+    if (toSummarize.length === 0) {
+      this.logger.info('Nothing to summarize, skipping compression');
+      return;
+    }
+
+    // Use Architect to summarize the older messages
+    const summary = await this.architect.summarize(toSummarize);
+
+    // Replace runnable scope with summary + recent messages
+    const summaryMessage: Message = {
+      role: 'system',
+      content: `[PREVIOUS CONTEXT SUMMARY]:\n${summary}`,
+      timestamp: new Date(),
+      scope: 'runnable',
+    };
+
+    memoryManager.compressRunnable([summaryMessage, ...toKeep]);
+
+    const newStats = memoryManager.getStats();
+    this.logger.info('Context compressed via Architect', {
+      summarizedMessages: toSummarize.length,
+      keptMessages: toKeep.length + 1,
+      oldRunnableTokens: stats.scopes.runnable.tokens,
+      newRunnableTokens: newStats.scopes.runnable.tokens,
+      tokensSaved: stats.scopes.runnable.tokens - newStats.scopes.runnable.tokens,
+    });
   }
 
   /**

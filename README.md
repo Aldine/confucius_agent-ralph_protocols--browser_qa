@@ -2,14 +2,84 @@
 
 > "Files are state, memory is cache"
 
-**Confucius Agent** - A unified npm package combining Ralph Protocol v3 and Browser QA MCP Server for autonomous AI agent development.
+**Confucius Agent** - A feature-complete implementation of the Confucius Code Agent architecture for autonomous AI agent development.
 
 [![npm version](https://img.shields.io/npm/v/@aldine/confucius-agent.svg)](https://www.npmjs.com/package/@aldine/confucius-agent)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+## 📚 Based on Research
+
+This SDK implements the architecture described in:
+
+> **Confucius: Iterative Tool Learning from Introspection Feedback by Easy-to-Difficult Curriculum**  
+> Shen et al., 2024  
+> arXiv:2512.10398v5  
+> https://arxiv.org/abs/2512.10398
+
+The paper introduces a scalable agent scaffold designed for real-world codebases with:
+- **Orchestrator Loop** (Algorithm 1) - Core execution cycle
+- **Extension System** - Pluggable tool architecture
+- **Hierarchical Working Memory** - Session/Entry/Runnable scopes
+- **Sub-Agents** - Architect (compression), NoteTaker (sessions), Meta-Agent (learning)
+
+## 🆕 What's New in v2.0.0
+
+### 🧠 Confucius SDK (NEW)
+Full implementation of the Confucius Code Agent paper:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      CONFUCIUS AGENT                            │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐         │
+│  │   Session   │    │    Entry    │    │  Runnable   │         │
+│  │   Scope     │───▶│   Scope     │───▶│   Scope     │         │
+│  │ (immutable) │    │ (task)      │    │ (trace)     │         │
+│  └─────────────┘    └─────────────┘    └─────────────┘         │
+│         │                                      │                │
+│         ▼                                      ▼                │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │               ORCHESTRATOR (Algorithm 1)                 │   │
+│  │  while iteration < max_iters:                           │   │
+│  │    1. Invoke LLM with memory                            │   │
+│  │    2. Parse actions from response                       │   │
+│  │    3. Route to extensions → Execute → Update memory     │   │
+│  │    4. Check completion/compression                      │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│         │                                      │                │
+│         ▼                                      ▼                │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐         │
+│  │  Architect  │    │  NoteTaker  │    │ Meta-Agent  │         │
+│  │ (compress)  │    │ (sessions)  │    │ (learning)  │         │
+│  └─────────────┘    └─────────────┘    └─────────────┘         │
+│         │                  │                   │                │
+│         ▼                  ▼                   ▼                │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │              .ralph/ (Persistent Storage)               │   │
+│  │  sessions/session-*.md  │  knowledge.md (learned rules) │   │
+│  └─────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Key Features:**
+- **Hierarchical Memory**: Session (system prompt), Entry (task), Runnable (execution trace)
+- **Context Compression**: Architect agent summarizes runnable scope when tokens exceed threshold
+- **Session Notes**: NoteTaker generates structured Markdown summaries after each run
+- **Self-Improvement**: Meta-Agent extracts lessons and injects them into future sessions
+- **Built-in Extensions**: `bash`, `file_edit`, `think`, `finish`
+- **Multi-Provider LLM**: OpenRouter (default), OpenAI, Anthropic
+
 ## 📦 What's Included
 
-This package unifies three complementary systems:
+This package unifies four complementary systems:
+
+### 🧠 Confucius SDK (NEW in v2.0.0)
+Implementation of the Confucius Code Agent paper:
+- **Orchestrator Loop**: Algorithm 1 from the paper
+- **Extension System**: Pluggable tools (bash, file_edit, think, finish)
+- **Hierarchical Memory**: Three-scope architecture (Session/Entry/Runnable)
+- **Sub-Agents**: Architect, NoteTaker, Meta-Agent
+- **Knowledge Base**: Persistent learning across sessions
 
 ### 🔄 Ralph Protocol v3
 A text-based operating system for LLM agents with:
@@ -65,6 +135,30 @@ npm install -g @aldine/confucius-agent
 # Local installation
 npm install @aldine/confucius-agent
 ```
+
+### Confucius SDK - Run an Autonomous Task
+
+```bash
+# Set your API key (OpenRouter by default)
+export OPENROUTER_API_KEY=sk-or-v1-...
+
+# Or pass it directly
+confucius run "Create a hello.txt file with 'Hello World'" --api-key sk-or-v1-...
+
+# Use different providers
+confucius run "List files in current directory" --provider openai --model gpt-4o
+confucius run "Create a test file" --provider anthropic --model claude-3-5-sonnet-20241022
+
+# Verbose mode shows all internal operations
+confucius run "Check if README.md exists" --verbose
+```
+
+**What happens during a run:**
+1. **Session Scope** initialized with system prompt + learned rules from `.ralph/knowledge.md`
+2. **Entry Scope** set with your task
+3. **Orchestrator Loop** executes until task complete or max iterations
+4. **NoteTaker** generates session summary → `.ralph/sessions/session-*.md`
+5. **Meta-Agent** extracts lesson → appends to `.ralph/knowledge.md`
 
 ### Ralph Protocol - Initialize a Project
 
@@ -316,6 +410,29 @@ MIT License - see [LICENSE](./LICENSE) for details.
 - **Issues**: https://github.com/Aldine/confucius_agent-ralph_protocols--browser_qa/issues
 
 ## 🙏 Acknowledgments
+
+### Research Attribution
+
+The Confucius SDK implementation is based on the architecture described in:
+
+> **Confucius: Iterative Tool Learning from Introspection Feedback by Easy-to-Difficult Curriculum**  
+> Shen et al., 2024  
+> arXiv: [2512.10398v5](https://arxiv.org/abs/2512.10398)
+
+Key concepts implemented from the paper:
+- Algorithm 1: Orchestrator execution loop
+- Section 2.2: Extension system architecture
+- Section 2.3.1: Hierarchical working memory (Session/Entry/Runnable scopes)
+- Section 2.3.2: Note-taking agent for session summarization
+- Section 2.3.3: Meta-agent self-improvement loop
+
+### Built With
+
+- [OpenRouter](https://openrouter.ai/) - Multi-model LLM routing
+- [Anthropic Claude](https://www.anthropic.com/) - LLM provider
+- [OpenAI](https://openai.com/) - LLM provider
+- [Commander.js](https://github.com/tj/commander.js) - CLI framework
+- [Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/) - Browser automation
 
 Built with ❤️ for autonomous AI agent development, visual QA, and accessibility testing.
 

@@ -124,6 +124,17 @@ export interface ExecutionResult {
   
   /** Optional error details if success is false */
   error?: ExtensionError;
+
+  /** 
+   * Optional metadata for orchestrator control signals.
+   * Used by extensions like 'finish' to signal termination.
+   */
+  metadata?: {
+    terminate?: boolean;
+    reason?: string;
+    finalMessage?: string;
+    [key: string]: unknown;
+  };
 }
 
 // ============================================================================

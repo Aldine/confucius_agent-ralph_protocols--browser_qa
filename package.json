@@ -1,7 +1,7 @@
 {
   "name": "@aldine/confucius-agent",
-  "version": "2.0.0-alpha.1",
-  "description": "Confucius SDK - A scalable agent scaffold for real-world codebases. Implements orchestrator loop, extension system, hierarchical memory, and quality gates per the Confucius Code Agent paper.",
+  "version": "2.0.0-beta.1",
+  "description": "Confucius SDK - A scalable agent scaffold for real-world codebases. Implements orchestrator loop, extension system, hierarchical memory, and sub-agents per the Confucius Code Agent paper (arXiv:2512.10398).",
   "type": "module",
   "private": false,
   "license": "MIT",
@@ -24,13 +24,16 @@
     "confucius",
     "protocol",
     "autonomous",
-    "confucius",
+    "hierarchical-memory",
+    "meta-agent",
+    "self-improving",
     "ralph",
     "vscode",
     "mcp",
     "model-context-protocol",
     "copilot",
     "claude",
+    "openrouter",
     "browser",
     "cdp",
     "chrome-devtools",
@@ -42,19 +45,15 @@
     "node": ">=18.18.0"
   },
   "bin": {
-    "confucius": "build/cli.js",
-    "ralph": "build/ralph/index.js",
-    "confucius-browser": "build/browser/index.js"
+    "confucius": "./build/cli.js",
+    "ralph": "./build/ralph/index.js",
+    "confucius-browser": "./build/browser/index.js"
   },
   "files": [
     "build",
     "README.md",
     "LICENSE",
-    "SECURITY.md",
-    ".eslintrc.json",
-    "test-agent-focus.js",
-    "test-complete-verification.js",
-    "ralph-loop.ps1"
+    "SECURITY.md"
   ],
   "exports": {
     ".": {
@@ -84,8 +83,12 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.72.1",
     "@modelcontextprotocol/sdk": "^1.0.4",
+    "chalk": "^5.6.2",
     "commander": "^12.1.0",
+    "dotenv": "^17.2.3",
+    "openai": "^6.17.0",
     "ws": "^8.18.0",
     "zod": "^3.23.8"
   },

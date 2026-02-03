@@ -75,9 +75,49 @@ export class FileEditExtension implements IExtension {
 
   /**
    * Parse file edit parameters from LLM output.
+   * 
+   * Supports two formats:
+   * 1. Attribute-based: <file_edit type="create" path="...">content</file_edit>
+   * 2. Nested XML: <file_edit><path>...</path><content>...</content></file_edit>
    */
   parse(content: string): ParsedAction | null {
-    // Parse attributes from the tag
+    // Try nested XML format first (preferred by LLMs like Claude)
+    const nestedPathMatch = content.match(/<path>([\s\S]*?)<\/path>/i);
+    const nestedContentMatch = content.match(/<content>([\s\S]*?)<\/content>/i);
+    
+    if (nestedPathMatch) {
+      const path = nestedPathMatch[1].trim();
+      const fileContent = nestedContentMatch ? nestedContentMatch[1] : '';
+      
+      // Detect operation type from content
+      const oldMatch = content.match(/<old>([\s\S]*?)<\/old>/i);
+      const newMatch = content.match(/<new>([\s\S]*?)<\/new>/i);
+      
+      if (oldMatch && newMatch) {
+        return {
+          tool: 'file_edit',
+          parameters: {
+            type: 'replace',
+            path,
+            oldContent: oldMatch[1],
+            newContent: newMatch[1],
+          } as unknown as Record<string, unknown>,
+          rawContent: content,
+        };
+      }
+      
+      return {
+        tool: 'file_edit',
+        parameters: {
+          type: 'create',
+          path,
+          content: fileContent,
+        } as unknown as Record<string, unknown>,
+        rawContent: content,
+      };
+    }
+
+    // Fallback: Parse attributes from the tag
     const typeMatch = content.match(/type=["'](\w+)["']/i);
     const pathMatch = content.match(/path=["']([^"']+)["']/i);
 
