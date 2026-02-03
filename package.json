@@ -1,7 +1,7 @@
 {
   "name": "@aldine/confucius-agent",
-  "version": "1.0.4",
-  "description": "Confucius Agent - Ralph Protocol v3 + Browser QA MCP Server with AI agent focusing system (ESLint strict mode). Autonomous agent scaffold with visual QA, accessibility testing, and typo/linting prevention.",
+  "version": "2.0.0-alpha.1",
+  "description": "Confucius SDK - A scalable agent scaffold for real-world codebases. Implements orchestrator loop, extension system, hierarchical memory, and quality gates per the Confucius Code Agent paper.",
   "type": "module",
   "private": false,
   "license": "MIT",
@@ -18,6 +18,10 @@
     "llm",
     "agent",
     "scaffold",
+    "sdk",
+    "orchestrator",
+    "extensions",
+    "confucius",
     "protocol",
     "autonomous",
     "confucius",
@@ -38,6 +42,7 @@
     "node": ">=18.18.0"
   },
   "bin": {
+    "confucius": "build/cli.js",
     "ralph": "build/ralph/index.js",
     "confucius-browser": "build/browser/index.js"
   },
