@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import process from "node:process";
-import path from "node:path";
 import { runStdioServer } from "./mcp/server.js";
 import { writeClaudeMcpJson, writeVscodeMcpJson } from "./cli/config-writers.js";
 

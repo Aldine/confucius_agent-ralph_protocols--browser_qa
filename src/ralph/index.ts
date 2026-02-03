@@ -14,9 +14,8 @@
 
 import { Command } from "commander";
 import { existsSync, mkdirSync, writeFileSync, readFileSync, appendFileSync, copyFileSync, unlinkSync, readdirSync, statSync } from "fs";
-import { join, resolve, basename } from "path";
-import { execSync, spawn, spawnSync } from "child_process";
-import { createInterface } from "readline";
+import { join } from "path";
+import { execSync } from "child_process";
 
 const program = new Command();
 

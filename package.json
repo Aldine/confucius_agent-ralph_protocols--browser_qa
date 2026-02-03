@@ -45,7 +45,11 @@
     "build",
     "README.md",
     "LICENSE",
-    "SECURITY.md"
+    "SECURITY.md",
+    ".eslintrc.json",
+    "test-agent-focus.js",
+    "test-complete-verification.js",
+    "ralph-loop.ps1"
   ],
   "exports": {
     ".": {

@@ -1,6 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { z } from "zod";
 import { createLogger, type Logger } from "./logging.js";
 import { loadAllowlistFromEnv, loadApprovalPolicyFromEnv, assertUrlAllowed, validateUrl, verifyApprovalTokenOrThrow } from "../runtime/allowlist.js";
 import { getBrowserSession } from "../runtime/browser_session.js";
